@@ -49,16 +49,21 @@ public class EnvFactory {
     public static StreamExecutionEnvironment createStreamExecutionEnvironment(Options options) {
         Configuration flinkConf = new Configuration();
         if (StringUtils.isNotEmpty(options.getFlinkConfDir())) {
+            // 给出flink conf文件夹路径并加载，loadConfiguration重载版本还可以再加一个Configuration对象来补充配置
             flinkConf = GlobalConfiguration.loadConfiguration(options.getFlinkConfDir());
         }
         StreamExecutionEnvironment env;
         if (StringUtils.equalsIgnoreCase(ClusterMode.local.name(), options.getMode())) {
+            // local模式下，运行参数-flinkConfDir=path_to_flink_conf给出本地flink配置目录的路径
+            // 进而配置flink执行环境
             env = new MyLocalStreamEnvironment(flinkConf);
         } else {
+            // 其他运行模式下，运行参数-confProp=<json字符串>给出来配置flink执行环境
             Configuration cfg =
                     Configuration.fromMap(PropertiesUtil.confToMap(options.getConfProp()));
             env = StreamExecutionEnvironment.getExecutionEnvironment(cfg);
         }
+        // 关闭闭包清理，user code已经在每个worker节点下？
         env.getConfig().disableClosureCleaner();
         return env;
     }

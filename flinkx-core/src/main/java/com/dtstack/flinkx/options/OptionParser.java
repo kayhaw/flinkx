@@ -56,6 +56,7 @@ public class OptionParser {
                 options.addOption(name, optionRequired.hasArg(), optionRequired.description());
             }
         }
+        // 核心功能是通过Apache Common CLI的parse方法结合设置好的Option信息来对参数字符串数组完成解析
         CommandLine cl = parser.parse(options, args);
 
         for (Field field : fields) {

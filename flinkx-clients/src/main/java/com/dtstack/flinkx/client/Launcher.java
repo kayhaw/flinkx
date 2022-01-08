@@ -51,6 +51,7 @@ import java.util.List;
  * @author huyifan.zju@163.com
  */
 public class Launcher {
+    // LOG没用到?不想打印日志就别写，西八
     private static final Logger LOG = LoggerFactory.getLogger(Launcher.class);
 
     public static final String KEY_FLINKX_HOME = "FLINKX_HOME";
@@ -61,34 +62,47 @@ public class Launcher {
 
     public static void main(String[] args) throws Exception {
         OptionParser optionParser = new OptionParser(args);
+        // 使用Apache Common Cli解析程序参数
         Options launcherOptions = optionParser.getOptions();
 
         findDefaultConfigDir(launcherOptions);
 
+        // 把OptionParser对象中的参数又转为list形式，一个参数名后面接着一个参数值，两两配对
+        // 注意getProgramExeArgList方法检测到job选项后把文件路径替换为文件内容
         List<String> argList = optionParser.getProgramExeArgList();
 
         // 将argList转化为HashMap，方便通过参数名称来获取参数值
+        // 那为什么getProgramExeArgList不直接返回Map？有点憨
         HashMap<String, String> temp = new HashMap<>(16);
         for (int i = 0; i < argList.size(); i += 2) {
             temp.put(argList.get(i), argList.get(i + 1));
         }
-        // 对json中的值进行修改
+
+        // 对json中的变量值进行值替换
         String s = temp.get("-p");
         if (StringUtils.isNotBlank(s)) {
+            // CommandTransform方法按照"参数名1=参数值1,参数名2=参数值2"的格式分割得到对应的HashMap
             HashMap<String, String> parameter = JsonModifyUtil.CommandTransform(s);
+            // 根据变量参数替换json中的占位符，比如-p为name=kayhaw，json为{"name": "${name}"}，替换后
+            // 得到{"name": "kayhaw"}
+            // XXX 不喜欢这种replace函数替换字符串的方式，效率低(虽然从C语言过来的用着爽)
+            // 为什么不一开始就让flinkx接收，最朴素直白的json配置，还要绕那么一圈弯，个人认为这种灵活性应该由
+            // 调用flinnkx的服务来实现，而不是flinkx自己扩展
             temp.put("-job", JsonModifyUtil.JsonValueReplace(temp.get("-job"), parameter));
         }
 
-        // 清空list，填充修改后的参数值
+        // 清空list，填充修改后的参数值，这argList和temp互相倒也是给爷整懵了
         argList.clear();
         for (int i = 0; i < temp.size(); i++) {
             argList.add(temp.keySet().toArray()[i].toString());
             argList.add(temp.values().toArray()[i].toString());
         }
 
+        // argList其就是launcherOptions的字符串表示，这个参数设计冗余了
         JobDeployer jobDeployer = new JobDeployer(launcherOptions, argList);
 
         ClusterClientHelper clusterClientHelper = null;
+        // 根据mode参数值构造对应的xxxClientHelper
         switch (ClusterMode.getByName(launcherOptions.getMode())) {
             case local:
                 clusterClientHelper = new LocalClusterClientHelper();
@@ -121,6 +135,7 @@ public class Launcher {
 
         // add ext class
         URLClassLoader urlClassLoader = (URLClassLoader) Launcher.class.getClassLoader();
+        // add jar是UDF jar包，没有用到的话跳过
         List<URL> jarUrlList = ExecuteProcessHelper.getExternalJarUrls(launcherOptions.getAddjar());
         ClassLoaderManager.loadExtraJar(jarUrlList, urlClassLoader);
         clusterClientHelper.submit(jobDeployer);

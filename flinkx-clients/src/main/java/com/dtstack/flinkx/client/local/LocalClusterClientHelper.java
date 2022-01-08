@@ -31,6 +31,8 @@ import org.apache.flink.client.program.ClusterClient;
 public class LocalClusterClientHelper implements ClusterClientHelper {
     @Override
     public ClusterClient submit(JobDeployer jobDeployer) throws Exception {
+        // 从clients.Launcher的main方法到core包下Main类的main方法
+        // 又把对象转成了给main方法的args字符串数组
         String[] args = jobDeployer.getProgramArgs().toArray(new String[0]);
         Main.main(args);
         return null;

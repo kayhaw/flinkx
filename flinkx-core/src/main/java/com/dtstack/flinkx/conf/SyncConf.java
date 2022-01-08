@@ -40,8 +40,10 @@ public class SyncConf implements Serializable {
     private JobConf job;
 
     /** FlinkX提交端的插件包路径 */
+    // 即本地插件包路径
     private String pluginRoot;
     /** FlinkX运行时服务器上的远程端插件包路径 */
+    // 远程插件包路径，所以可以指定而不是要求跟本地一模一样的路径
     private String remotePluginPath;
 
     private String restorePath;

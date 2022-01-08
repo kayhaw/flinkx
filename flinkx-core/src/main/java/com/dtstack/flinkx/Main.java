@@ -79,15 +79,23 @@ public class Main {
 
     public static Logger LOG = LoggerFactory.getLogger(Main.class);
 
+    /**
+     * Main类的main方法是整个flinkx作为flink流应用的唯一入口类
+     */
     public static void main(String[] args) throws Exception {
         LOG.info("------------program params-------------------------");
         Arrays.stream(args).forEach(arg -> LOG.info("{}", arg));
         LOG.info("-------------------------------------------");
 
+        // 又把string字符串转为Options对象
         Options options = new OptionParser(args).getOptions();
+        // 将json字符串重新编码为UTF-8，后面gson解析需要
         String job = URLDecoder.decode(options.getJob(), Charsets.UTF_8.name());
+        // 环境变量，只用于table执行环境
         Properties confProperties = PropertiesUtil.parseConf(options.getConfProp());
+        // env用于执行普通同步任务
         StreamExecutionEnvironment env = EnvFactory.createStreamExecutionEnvironment(options);
+        // tenv用于执行flink sql同步任务，依赖于env
         StreamTableEnvironment tEnv =
                 EnvFactory.createStreamTableEnvironment(env, confProperties, options.getJobName());
 
@@ -95,7 +103,9 @@ public class Main {
             case SQL:
                 exeSqlJob(env, tEnv, job, options);
                 break;
+            // 其实我觉得这里可以改名叫JSON
             case SYNC:
+                // 开始正式执行
                 exeSyncJob(env, tEnv, job, options);
                 break;
             default:
@@ -156,10 +166,15 @@ public class Main {
             String job,
             Options options)
             throws Exception {
+
+        // job字符串是任务配置json，options是应用运行参数，把两者做个整合成配置类SyncConf
         SyncConf config = parseFlinkxConf(job, options);
+        // 非常关键的一步，TOP 1！！！会加载插件jar包到env中
         configStreamExecutionEnvironment(env, options, config);
 
+        // 加载source jar包并实例化类，很关键！！！
         SourceFactory sourceFactory = DataSyncFactoryUtil.discoverSource(config, env);
+        // 在createSource方法中会调用env的addSource方法
         DataStream<RowData> dataStreamSource = sourceFactory.createSource();
 
         SpeedConf speed = config.getSpeed();
@@ -240,12 +255,15 @@ public class Main {
     public static SyncConf parseFlinkxConf(String job, Options options) {
         SyncConf config;
         try {
+            // parseJob实际调用GSON的解析方法，顺便还做了校验
             config = SyncConf.parseJob(job);
 
+            // 手动补充可选参数，flinkxDistDir是本地存放flinkx connector插件jar的目录路径
             if (StringUtils.isNotBlank(options.getFlinkxDistDir())) {
                 config.setPluginRoot(options.getFlinkxDistDir());
             }
 
+            // remoteFlinkxDistDir是远程的目录路径
             if (StringUtils.isNotBlank(options.getRemoteFlinkxDistDir())) {
                 config.setRemotePluginPath(options.getRemoteFlinkxDistDir());
             }
@@ -266,6 +284,7 @@ public class Main {
             StreamExecutionEnvironment env, Options options, SyncConf config) {
         if (config != null) {
             PluginUtil.registerPluginUrlToCachedFile(config, env);
+            // 设置环境默认并行度
             env.setParallelism(config.getSpeed().getChannel());
         } else {
             Preconditions.checkArgument(
@@ -283,6 +302,7 @@ public class Main {
             FactoryUtil.setFactoryUtilHelp(factoryHelper);
             TableFactoryService.setFactoryUtilHelp(factoryHelper);
         }
+        // env加载shipfile，和registerPluginUrlToCachedFile中加载的文件不同，它是不可执行的
         PluginUtil.registerShipfileToCachedFile(options.getAddShipfile(), env);
     }
 }

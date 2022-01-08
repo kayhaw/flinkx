@@ -93,7 +93,9 @@ public class PluginUtil {
             String pluginName, String pluginRoot, String remotePluginPath) {
         Set<URL> urlList = new HashSet<>();
 
+        // 以远程插件包路径设置为主，它是空的才取本地插件包路径
         String pluginPath = Objects.isNull(remotePluginPath) ? pluginRoot : remotePluginPath;
+        // 把插件名称中的reader、source、writer、sink关键字去掉，比如json配置插件名为mysqlreader替换为mysql
         String name =
                 pluginName
                         .replace(READER_SUFFIX, "")
@@ -103,8 +105,9 @@ public class PluginUtil {
 
         try {
             String pluginJarPath = pluginRoot + SP + name;
-            // 获取jar包名字，构建对应的URL地址
+            // getJarNames获取指定路径下所有以flinkx开头，.jar结尾的文件名(不包含路径)
             for (String jarName : getJarNames(new File(pluginJarPath))) {
+                // 最后返回插件的绝对路径
                 urlList.add(new URL(FILE_PREFIX + pluginPath + SP + name + SP + jarName));
             }
             return urlList;
@@ -208,11 +211,13 @@ public class PluginUtil {
     public static void registerPluginUrlToCachedFile(
             SyncConf config, StreamExecutionEnvironment env) {
         Set<URL> urlSet = new HashSet<>();
+        // 这里固定死了远程插件包路径为null，getJarFileDirPath也只会取本地插件包路径了
         Set<URL> coreUrlList = getJarFileDirPath("", config.getPluginRoot(), null);
         Set<URL> formatsUrlList = getJarFileDirPath(FORMATS_SUFFIX, config.getPluginRoot(), null);
         Set<URL> sourceUrlList =
                 getJarFileDirPath(
                         config.getReader().getName(),
+                        // 注意这里插件搜索根路径换了，在connector目录下面找，sink同理
                         config.getPluginRoot() + SP + CONNECTOR_DIR_NAME,
                         null);
         Set<URL> sinkUrlList =
@@ -223,6 +228,7 @@ public class PluginUtil {
         Set<URL> metricUrlList =
                 getJarFileDirPath(
                         config.getMetricPluginConf().getPluginName(),
+                        // 指标插件在metrics目录下面找
                         config.getPluginRoot() + SP + METRIC_SUFFIX,
                         null);
         urlSet.addAll(coreUrlList);
@@ -234,15 +240,18 @@ public class PluginUtil {
         int i = 0;
         for (URL url : urlSet) {
             String classFileName = String.format(CLASS_FILE_NAME_FMT, i);
+            // 注册所有的jar包
             env.registerCachedFile(url.getPath(), classFileName, true);
             i++;
         }
 
+        // 如果是本地执行环境则直接加载，每个线程加载自己的
         if (env instanceof MyLocalStreamEnvironment) {
             ((MyLocalStreamEnvironment) env).setClasspaths(new ArrayList<>(urlSet));
             if (CollectionUtils.isNotEmpty(coreUrlList)) {
                 try {
                     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+                    // 为什么要用反射加载jar包？？？
                     Method add = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
                     add.setAccessible(true);
                     add.invoke(contextClassLoader, new ArrayList<>(coreUrlList).get(0));

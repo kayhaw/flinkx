@@ -36,5 +36,12 @@ fi
 JAR_DIR=$FLINKX_HOME/lib/*
 CLASS_NAME=com.dtstack.flinkx.client.Launcher
 
-echo "flinkx starting ..."
+echo "flinkx starting ...
+# Linux命令 no hang up 缩写，并且默认将输出重定向到nohup.out文件
+# #@表示所有命令参数
+# &表示整个命令后台执行
 nohup $JAVA_RUN -cp $JAR_DIR $CLASS_NAME $@ &
+
+# 以上命令翻译过来就是
+# nohup java -cp /path-to-flinkx/lib/* com.dtstack.flinkx.client.Launcher $@ &
+# 程序入口在Launcher类
