@@ -27,11 +27,13 @@ public class ClassLoaderSupplierCallBack {
 
     public static <R> R callbackAndReset(
             ClassLoaderSupplier<R> supplier, ClassLoader toSetClassLoader) throws Exception {
+        // 暂时地将线程类加载器替换为toSetClassLoader，然后调用supplier.get方法
         ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(toSetClassLoader);
         try {
             return supplier.get(toSetClassLoader);
         } finally {
+            // 还原旧的
             Thread.currentThread().setContextClassLoader(oldClassLoader);
         }
     }

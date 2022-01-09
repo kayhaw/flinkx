@@ -49,8 +49,11 @@ public class DataSyncFactoryUtil {
 
     public static SourceFactory discoverSource(SyncConf config, StreamExecutionEnvironment env) {
         try {
+            // 插件名来自json配置，如mysqlreader
             String pluginName = config.getJob().getReader().getName();
+            // 得到插件工厂全路径类名，如com.dtstack.flinkx.connector.mysql.source.MysqlSourceFactory
             String pluginClassName = PluginUtil.getPluginClassName(pluginName, OperatorType.source);
+            // 获取插件jar包路径
             Set<URL> urlList =
                     PluginUtil.getJarFileDirPath(
                             pluginName,
@@ -58,12 +61,17 @@ public class DataSyncFactoryUtil {
                                     + File.separatorChar
                                     + ConstantValue.CONNECTOR_DIR_NAME,
                             null);
+            // 加入format目录下jar包路径
             urlList.addAll(
                     PluginUtil.getJarFileDirPath(
                             PluginUtil.FORMATS_SUFFIX, config.getPluginRoot(), null));
+            // ConfigUtils是flink提供的工具方法，以下代码相当于给第一个Configuration参数添加列表配置项
+            // 第二个参数是配置名称，第3个参数是配置列表，第4个参数是列表元素如何转为String(转出类型由第二个参数决定)
             ConfigUtils.encodeCollectionToConfig(
+                    // 为什么不能直接env.getConfig()而是要通过反射？
                     (Configuration)
                             ReflectionUtils.getDeclaredMethod(env, "getConfiguration").invoke(env),
+                    // 这是用于pipeline的jar包
                     PipelineOptions.JARS,
                     urlList,
                     URL::toString);
@@ -75,12 +83,15 @@ public class DataSyncFactoryUtil {
                     URL::toString);
 
             return ClassLoaderManager.newInstance(
+                    // 为什么传入urlList？它作为key来标识之前使用的classload
                     urlList,
+                    // cl是classload缩写
                     cl -> {
                         Class<?> clazz = cl.loadClass(pluginClassName);
                         Constructor<?> constructor =
                                 clazz.getConstructor(
                                         SyncConf.class, StreamExecutionEnvironment.class);
+                        // 调用特定的构造方法返回SourceFactory对象
                         return (SourceFactory) constructor.newInstance(config, env);
                     });
         } catch (Exception e) {

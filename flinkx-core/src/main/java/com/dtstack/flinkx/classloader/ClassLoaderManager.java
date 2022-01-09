@@ -58,6 +58,7 @@ public class ClassLoaderManager {
     private static URLClassLoader retrieveClassLoad(List<URL> jarUrls) {
         jarUrls.sort(Comparator.comparing(URL::toString));
         String jarUrlkey = StringUtils.join(jarUrls, "_");
+        // computeIfAbsent，如果key对应value不在则调用方法得到一个ClassLoader并且放到pluginClassLoader中
         return pluginClassLoader.computeIfAbsent(
                 jarUrlkey,
                 k -> {
@@ -65,6 +66,7 @@ public class ClassLoaderManager {
                         URL[] urls = jarUrls.toArray(new URL[0]);
                         ClassLoader parentClassLoader =
                                 Thread.currentThread().getContextClassLoader();
+                        // 使用当前线程类加载器和url组成类加载器
                         URLClassLoader classLoader = new URLClassLoader(urls, parentClassLoader);
                         LOG.info("jarUrl:{} create ClassLoad successful...", jarUrlkey);
                         return classLoader;

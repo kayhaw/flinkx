@@ -153,6 +153,7 @@ public class PluginUtil {
                 break;
             case source:
                 String sourceName = pluginName.replace(READER_SUFFIX, SOURCE_SUFFIX);
+                // 这里得到的插件类名是工厂类名！！！
                 pluginClassName = camelize(sourceName, SOURCE_SUFFIX);
                 break;
             case sink:
@@ -185,7 +186,9 @@ public class PluginUtil {
                 .append(suffix)
                 .append(ConstantValue.POINT_SYMBOL);
         left = ConnectorNameConvertUtil.convertClassPrefix(left);
+        // 把left首字母改为大写
         sb.append(left.substring(0, 1).toUpperCase()).append(left.substring(1));
+        // 把suffix首字母改为大写
         sb.append(suffix.substring(0, 1).toUpperCase()).append(suffix.substring(1));
         sb.append(GENERIC_SUFFIX);
         return sb.toString();

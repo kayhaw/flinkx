@@ -79,9 +79,7 @@ public class Main {
 
     public static Logger LOG = LoggerFactory.getLogger(Main.class);
 
-    /**
-     * Main类的main方法是整个flinkx作为flink流应用的唯一入口类
-     */
+    /** Main类的main方法是整个flinkx作为flink流应用的唯一入口类 */
     public static void main(String[] args) throws Exception {
         LOG.info("------------program params-------------------------");
         Arrays.stream(args).forEach(arg -> LOG.info("{}", arg));
@@ -103,7 +101,7 @@ public class Main {
             case SQL:
                 exeSqlJob(env, tEnv, job, options);
                 break;
-            // 其实我觉得这里可以改名叫JSON
+                // 其实我觉得这里可以改名叫JSON
             case SYNC:
                 // 开始正式执行
                 exeSyncJob(env, tEnv, job, options);
@@ -172,12 +170,13 @@ public class Main {
         // 非常关键的一步，TOP 1！！！会加载插件jar包到env中
         configStreamExecutionEnvironment(env, options, config);
 
-        // 加载source jar包并实例化类，很关键！！！
+        // sourceFactory，很关键！！！
         SourceFactory sourceFactory = DataSyncFactoryUtil.discoverSource(config, env);
-        // 在createSource方法中会调用env的addSource方法
+        // 在createSource方法中会调用env的addSource方法，关键！！！
         DataStream<RowData> dataStreamSource = sourceFactory.createSource();
 
         SpeedConf speed = config.getSpeed();
+        // 为source算子设置并行度
         if (speed.getReaderChannel() > 0) {
             dataStreamSource =
                     ((DataStreamSource<RowData>) dataStreamSource)
@@ -189,6 +188,7 @@ public class Main {
                 config.getTransformer() != null
                         && StringUtils.isNotBlank(config.getTransformer().getTransformSql());
 
+        // 如果开启transformer，将数据流转为表后使用用户自定义sql进行转换操作
         if (transformer) {
             dataStream = syncStreamToTable(tableEnv, config, dataStreamSource);
         } else {
@@ -196,16 +196,20 @@ public class Main {
         }
 
         if (speed.isRebalance()) {
+            // 数据流均匀发送到下一个算子
             dataStream = dataStream.rebalance();
         }
 
+        // 步骤同sourceFactory
         SinkFactory sinkFactory = DataSyncFactoryUtil.discoverSink(config);
         DataStreamSink<RowData> dataStreamSink = sinkFactory.createSink(dataStream);
         if (speed.getWriterChannel() > 0) {
             dataStreamSink.setParallelism(speed.getWriterChannel());
         }
 
+        // 执行作业，作业名来自命令行参数
         JobExecutionResult result = env.execute(options.getJobName());
+        // 如果是本地执行还打印下统计结果
         if (env instanceof MyLocalStreamEnvironment) {
             PrintUtil.printResult(result.getAllAccumulatorResults());
         }
@@ -223,14 +227,17 @@ public class Main {
             StreamTableEnvironment tableEnv,
             SyncConf config,
             DataStream<RowData> sourceDataStream) {
+        // transform sql的字段来自json中fieldNameList配置项
         String fieldNames =
                 String.join(ConstantValue.COMMA_SYMBOL, config.getReader().getFieldNameList());
         List<Expression> expressionList = ExpressionParser.parseExpressionList(fieldNames);
+        // 相当于执行select语句过滤字段
         Table sourceTable =
                 tableEnv.fromDataStream(
                         sourceDataStream, expressionList.toArray(new Expression[0]));
+        // 加上表名
         tableEnv.createTemporaryView(config.getReader().getTable().getTableName(), sourceTable);
-
+        // 获取transform sql然后执行得到结果表adaptTable
         String transformSql = config.getJob().getTransformer().getTransformSql();
         Table adaptTable = tableEnv.sqlQuery(transformSql);
 
@@ -238,10 +245,17 @@ public class Main {
         String[] tableFieldNames = adaptTable.getSchema().getFieldNames();
         TypeInformation<RowData> typeInformation =
                 TableUtil.getTypeInformation(tableDataTypes, tableFieldNames);
+        // 获取结果表的数据流并返回
         DataStream<RowData> dataStream =
                 tableEnv.toRetractStream(adaptTable, typeInformation).map(f -> f.f1);
+        // 注意这里把表名改成写插件中设置的
         tableEnv.createTemporaryView(config.getWriter().getTable().getTableName(), dataStream);
 
+        /**
+         * 总结一下这里Table API转换流程： 1. tableEnv.fromDataStream(): 数据流转原生数据表 2.
+         * tableEnv.createTemporaryView(表名，table) + sqlQuery：给原生数据表加上表名后执行sql得到转换数据表 3.
+         * tableEnv.toRetractStream(): 获取转换后的数据流 4. 再次给转换后数据流设置表名 5. 最后返回转换后数据流
+         */
         return dataStream;
     }
 
