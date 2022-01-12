@@ -37,6 +37,7 @@ public class MysqlSourceFactory extends JdbcSourceFactory {
     private static final int DEFAULT_FETCH_SIZE = Integer.MIN_VALUE;
 
     public MysqlSourceFactory(SyncConf syncConf, StreamExecutionEnvironment env) {
+        // JdbcSourceFactory完成通用关系型数据库的公共功能
         super(syncConf, env, new MysqlDialect());
         // 避免result.next阻塞
         if (jdbcConf.isPolling()

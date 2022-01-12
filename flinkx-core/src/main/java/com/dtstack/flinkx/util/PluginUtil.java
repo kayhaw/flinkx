@@ -253,8 +253,8 @@ public class PluginUtil {
             ((MyLocalStreamEnvironment) env).setClasspaths(new ArrayList<>(urlSet));
             if (CollectionUtils.isNotEmpty(coreUrlList)) {
                 try {
+                    // contextClassLoader运行时是app classloader，它集成自URLClassLoader，所以有addURL方法
                     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-                    // 为什么要用反射加载jar包？？？
                     Method add = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
                     add.setAccessible(true);
                     add.invoke(contextClassLoader, new ArrayList<>(coreUrlList).get(0));

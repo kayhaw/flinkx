@@ -61,16 +61,21 @@ public abstract class JdbcSourceFactory extends SourceFactory {
     private static final int DEFAULT_FETCH_SIZE = 1024;
     private static final int DEFAULT_QUERY_TIMEOUT = 300;
 
+    // 总地来说就是设置jdbcDialect和jdbcConf
     public JdbcSourceFactory(
             SyncConf syncConf, StreamExecutionEnvironment env, JdbcDialect jdbcDialect) {
+        // 又分了一层，父类调用
         super(syncConf, env);
+        // jdbcDialect由每个子类自己实现
         this.jdbcDialect = jdbcDialect;
+        // 为什么要给Connection配置单独设置？
         Gson gson =
                 new GsonBuilder()
                         .registerTypeAdapter(
                                 ConnectionConf.class, new ConnectionAdapter("SourceConnectionConf"))
                         .create();
         GsonUtil.setTypeAdapter(gson);
+        // 将json解析成什么对象，由getConfClass决定
         jdbcConf = gson.fromJson(gson.toJson(syncConf.getReader().getParameter()), getConfClass());
         jdbcConf.setColumn(syncConf.getReader().getFieldList());
 
@@ -88,7 +93,9 @@ public abstract class JdbcSourceFactory extends SourceFactory {
             }
         }
         initIncrementConfig(jdbcConf);
+        // 父类构造方法不是调过一次了吗？
         super.initFlinkxCommonConf(jdbcConf);
+        // 不喜欢json的原因之一：特殊字符转义麻烦
         resetTableInfo();
     }
 
@@ -96,16 +103,19 @@ public abstract class JdbcSourceFactory extends SourceFactory {
         return JdbcConf.class;
     }
 
+    // 目前来看通用关系型数据库都没有重写JdbcSourceFactory的createSource()方法，直接复用
     @Override
     public DataStream<RowData> createSource() {
         JdbcInputFormatBuilder builder = getBuilder();
 
+        // fetchSize和queryTimeOut不可以为0，否则用默认设置替换
         int fetchSize = jdbcConf.getFetchSize();
         jdbcConf.setFetchSize(fetchSize == 0 ? getDefaultFetchSize() : fetchSize);
 
         int queryTimeOut = jdbcConf.getQueryTimeOut();
         jdbcConf.setQueryTimeOut(queryTimeOut == 0 ? DEFAULT_QUERY_TIMEOUT : queryTimeOut);
 
+        // 给builder设置jdbcConf、jdbcDialect和rowConverter
         builder.setJdbcConf(jdbcConf);
         builder.setJdbcDialect(jdbcDialect);
 

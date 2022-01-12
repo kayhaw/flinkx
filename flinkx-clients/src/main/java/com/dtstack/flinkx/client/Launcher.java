@@ -144,6 +144,7 @@ public class Launcher {
     private static void findDefaultConfigDir(Options launcherOptions) {
         findDefaultFlinkxDistDir(launcherOptions);
 
+        // local模式只需要配置FlinkXDistDir这一个就可以
         if (ClusterMode.local.name().equalsIgnoreCase(launcherOptions.getMode())) {
             return;
         }
@@ -189,10 +190,12 @@ public class Launcher {
 
     private static void findDefaultFlinkxDistDir(Options launcherOptions) {
         String distDir = launcherOptions.getFlinkxDistDir();
+        // 如果运行参数还未设置，通过系统变量来自己找
         if (StringUtils.isEmpty(distDir)) {
             String flinkxHome = getSystemProperty(KEY_FLINKX_HOME);
             if (StringUtils.isNotEmpty(flinkxHome)) {
                 flinkxHome = flinkxHome.trim();
+                // 还考虑到路径最末尾有没有加路径分隔符，细！
                 if (flinkxHome.endsWith(File.separator)) {
                     distDir = flinkxHome + PLUGINS_DIR_NAME;
                 } else {

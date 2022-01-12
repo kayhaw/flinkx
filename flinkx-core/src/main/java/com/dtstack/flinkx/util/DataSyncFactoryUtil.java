@@ -83,7 +83,7 @@ public class DataSyncFactoryUtil {
                     URL::toString);
 
             return ClassLoaderManager.newInstance(
-                    // 为什么传入urlList？它作为key来标识之前使用的classload
+                    // 为什么传入urlList？它作为key来标识之前使用的classloader
                     urlList,
                     // cl是classload缩写
                     cl -> {

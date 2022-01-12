@@ -82,6 +82,7 @@ public class DtInputFormatSourceFunction<OUT> extends InputFormatSourceFunction<
 
     @SuppressWarnings("unchecked")
     public DtInputFormatSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
+        // 本质是对InputFormatSourceFunction的继承封装
         super(format, typeInfo);
         this.format = (InputFormat<OUT, InputSplit>) format;
         this.typeInfo = typeInfo;
