@@ -126,7 +126,7 @@ public abstract class SourceFactory implements RawTypeConvertible {
          */
         DtInputFormatSourceFunction<RowData> function =
                 new DtInputFormatSourceFunction<>(inputFormat, getTypeInformation());
-        // 添加souce算子，算子名称是工厂类名的全小写模式，如mysqlsourcefactory
+        // 添加source算子，算子名称是工厂类名的全小写模式，如mysqlsourcefactory
         return env.addSource(function, sourceName, getTypeInformation());
     }
 

@@ -124,6 +124,7 @@ public class DtInputFormatSourceFunction<OUT> extends InputFormatSourceFunction<
 
             OUT nextElement = serializer.createInstance();
             while (isRunning) {
+                // open方法建立jdbc连接
                 format.open(splitIterator.next());
 
                 // for each element we also check if cancel

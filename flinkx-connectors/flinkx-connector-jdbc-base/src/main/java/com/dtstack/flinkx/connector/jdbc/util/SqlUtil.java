@@ -98,30 +98,42 @@ public class SqlUtil {
         // customSql为空 且 splitPk是ROW_NUMBER()
         boolean flag =
                 StringUtils.isBlank(jdbcConf.getCustomSql())
+                        // 不为空并且包含左括号即
                         && SqlUtil.addRowNumColumn(jdbcConf.getSplitPk());
 
         String splitFilter = null;
+        // 如果划分split数大于1，需要根据划分策略提供sql
         if (jdbcInputSplit.getTotalNumberOfSplits() > 1) {
             String splitColumn;
             if (flag) {
+                // "FLINKX_ROWNUM"
                 splitColumn = jdbcDialect.getRowNumColumnAlias();
             } else {
                 splitColumn = jdbcConf.getSplitPk();
             }
+            /**
+             * 划分策略：range(默认，从x到y为一组)、mod（主键取mod分组）
+             * ranger策略返回  id >= 10 and id<=20
+             * mod策略返回 mod(id,2)=1
+             */
             splitFilter =
                     buildSplitFilterSql(
                             jdbcConf.getSplitStrategy(), jdbcDialect, jdbcInputSplit, splitColumn);
         }
 
         String querySql;
+        // 如果没有提供自定义sql来获取数据
         if (flag) {
+            // 使用and连接过滤条件
             String whereSql = String.join(" AND ", whereList.toArray(new String[0]));
             String tempQuerySql =
                     jdbcDialect.getSelectFromStatement(
                             jdbcConf.getSchema(),
                             jdbcConf.getTable(),
                             jdbcConf.getCustomSql(),
+                            // 实际要取的字段列表
                             columnNameList.toArray(new String[0]),
+                            // 分片字段列，实际上getRowNumColumn返回String而不是数据
                             Lists.newArrayList(
                                             SqlUtil.getRowNumColumn(
                                                     jdbcConf.getSplitPk(), jdbcDialect))
@@ -129,7 +141,11 @@ public class SqlUtil {
                             whereSql);
 
             // like 'SELECT * FROM (SELECT "id", "name", rownum as FLINKX_ROWNUM FROM "table" WHERE
-            // "id"  >  2) flinkx_tmp WHERE FLINKX_ROWNUM >= 1  and FLINKX_ROWNUM < 10 '
+            // "id"  >  2) flinkx_tmp WHERE FLINKX_ROWNUM >= 1  and FLINKX_ROWNUM < 10
+            /**
+             * 还是拼sql，这次加上切分从句，可以考虑和getSelectFromStatement的代码逻辑合并一下？
+             * FIXME 这里把tempQuerySql作为子查询来拼接最终的sql，能不能去掉这一层嵌套？
+             */
             querySql =
                     jdbcDialect.getSelectFromStatement(
                             jdbcConf.getSchema(),
@@ -141,6 +157,7 @@ public class SqlUtil {
             if (StringUtils.isNotEmpty(splitFilter)) {
                 whereList.add(splitFilter);
             }
+            // 如果自定义sql加了where过滤和外层通过whereList设置的冗余
             String whereSql = String.join(" AND ", whereList.toArray(new String[0]));
             // like 'SELECT * FROM (SELECT "id", "name" FROM "table") flinkx_tmp WHERE id >= 1 and
             // id <10 '

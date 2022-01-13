@@ -267,6 +267,7 @@ public interface JdbcDialect extends Serializable {
                         .collect(Collectors.joining(", "));
         StringBuilder sql = new StringBuilder(128);
         sql.append("SELECT ");
+        // XXX 还是一样的逻辑，customSql进来时已经不为空了
         if (StringUtils.isNotBlank(customSql)) {
             sql.append("* FROM (")
                     .append(customSql)
@@ -305,20 +306,33 @@ public interface JdbcDialect extends Serializable {
         }
         StringBuilder sql = new StringBuilder(128);
         sql.append("SELECT ");
+        /**
+         * customSql非空，使用select * from (<customSql>) as flinkx_tmp来作为查询语句
+         * XXX 注意getSelectFromStatement方法只有一处被调用，进来时customSql已经确定为空了，这里的if判断显得多此一举
+         */
         if (StringUtils.isNotBlank(customSql)) {
             sql.append("* FROM (")
                     .append(customSql)
                     .append(") ")
                     .append(JdbcUtil.TEMPORARY_TABLE_NAME);
         } else {
+        // customSql不为空，使用自选的column和分片字段构造查询语句
             sql.append(selectExpressions)
                     .append(" FROM ")
                     .append(buildTableInfoWithSchema(schemaName, tableName));
         }
+        /**
+         * 接上过滤where从句，建议改成如下形式：
+         * if(StringUtils.isNotBlank(where)) {
+         *     sql.append(" where ");
+         *     sql.append(where);
+         * }
+         */
         sql.append(" WHERE ");
         if (StringUtils.isNotBlank(where)) {
             sql.append(where);
         } else {
+            // 如果不加的话，只跟where会有语法错误，有点耍小聪明的意思
             sql.append(" 1=1 ");
         }
         return sql.toString();

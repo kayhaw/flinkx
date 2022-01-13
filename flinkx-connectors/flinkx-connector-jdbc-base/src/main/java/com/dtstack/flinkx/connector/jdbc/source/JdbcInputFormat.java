@@ -110,7 +110,18 @@ public class JdbcInputFormat extends BaseRichInputFormat {
             dbConn = getConnection();
             dbConn.setAutoCommit(false);
 
+            /**
+             * getTableMataData方法调用jdbc原生Connection类提供的
+             * ResultSet tableRs = Connection.getMetaData().getTables(null, schema, tableName, null);
+             * 该方法根据schema和tableName来获取表的元信息，即表的字段类型和字段名称
+             * 相比于DataX的getColumnMetaData方法通过执行select * from 表名 where 1=2 这种故意的sql来获取字段名显得更加"优雅"
+             * 注意部分子类重写getTableMetaData方法，因为schema和表名需要大写
+             */
             Pair<List<String>, List<String>> pair = getTableMetaData();
+            /**
+             * 根据任务配置提供的字段name和表的所有字段信息pair匹配
+             * 过滤得到需要的表字段信息
+             */
             Pair<List<String>, List<String>> columnPair =
                     ColumnBuildUtil.handleColumnList(
                             jdbcConf.getColumn(), pair.getLeft(), pair.getRight());
@@ -118,6 +129,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
             columnTypeList = columnPair.getRight();
 
             querySQL = buildQuerySql(jdbcInputSplit);
+            // 配置应该就是固定的，不能反向设置，否则别人不知道自己的设置会改
             jdbcConf.setQuerySql(querySQL);
             executeQuery(jdbcInputSplit.getStartLocation());
             if (!resultSet.isClosed()) {
