@@ -112,9 +112,8 @@ public class SqlUtil {
                 splitColumn = jdbcConf.getSplitPk();
             }
             /**
-             * 划分策略：range(默认，从x到y为一组)、mod（主键取mod分组）
-             * ranger策略返回  id >= 10 and id<=20
-             * mod策略返回 mod(id,2)=1
+             * 划分策略：range(默认，从x到y为一组)、mod（主键取mod分组） ranger策略返回示例 id >= 10 and id<=20 mod策略返回示例
+             * mod(id,2)=1
              */
             splitFilter =
                     buildSplitFilterSql(
@@ -143,8 +142,8 @@ public class SqlUtil {
             // like 'SELECT * FROM (SELECT "id", "name", rownum as FLINKX_ROWNUM FROM "table" WHERE
             // "id"  >  2) flinkx_tmp WHERE FLINKX_ROWNUM >= 1  and FLINKX_ROWNUM < 10
             /**
-             * 还是拼sql，这次加上切分从句，可以考虑和getSelectFromStatement的代码逻辑合并一下？
-             * FIXME 这里把tempQuerySql作为子查询来拼接最终的sql，能不能去掉这一层嵌套？
+             * 还是拼sql，这次加上切分从句，可以考虑和getSelectFromStatement的代码逻辑合并一下？ FIXME
+             * 这里把tempQuerySql作为子查询来拼接最终的sql，能不能去掉这一层嵌套？
              */
             querySql =
                     jdbcDialect.getSelectFromStatement(
@@ -271,8 +270,13 @@ public class SqlUtil {
             JdbcInputSplit jdbcInputSplit,
             String splitColumn) {
         if ("range".equalsIgnoreCase(splitStrategy)) {
+            /** 通过jdbcInputSplit的startLocationOfSplit、endLocationOfSplit 字段设置范围，左闭右开 */
             return jdbcDialect.getSplitRangeFilter(jdbcInputSplit, splitColumn);
         } else {
+            /**
+             * 默认使用mod函数，不同数据源通过重写getSplitModFilter方法来使用自己特定的取余函数
+             * 通过jdbcInputSplit.getTotalNumberOfSplits总分片数 通过jdbcInputSplit.getMod获取模大小
+             */
             return jdbcDialect.getSplitModFilter(jdbcInputSplit, splitColumn);
         }
     }

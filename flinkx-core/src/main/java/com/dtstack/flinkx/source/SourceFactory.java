@@ -119,10 +119,10 @@ public abstract class SourceFactory implements RawTypeConvertible {
         Preconditions.checkNotNull(sourceName);
         Preconditions.checkNotNull(inputFormat);
         /**
-        /* 构造source算子提供一个InputFormat和一个TypeInformation
-        /* DtInputFormatSourceFunction类没有被继承，因此是所有数据源SourceFunction的包装类
-        /* 它封装了inputFormat和TypeInformation，产生数据流由inputFormat提供
-        /* 所以inputFormat才是source connector异化的本质
+         * /* 构造source算子提供一个InputFormat和一个TypeInformation /*
+         * DtInputFormatSourceFunction类没有被继承，因此是所有数据源SourceFunction的包装类 /*
+         * 它封装了inputFormat和TypeInformation，产生数据流由inputFormat提供 /* 所以inputFormat才是source
+         * connector异化的本质
          */
         DtInputFormatSourceFunction<RowData> function =
                 new DtInputFormatSourceFunction<>(inputFormat, getTypeInformation());

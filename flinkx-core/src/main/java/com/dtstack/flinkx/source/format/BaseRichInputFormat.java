@@ -135,6 +135,7 @@ public abstract class BaseRichInputFormat extends RichInputFormat<RowData, Input
             throw new RuntimeException(((ErrorInputSplit) inputSplit).getErrorMessage());
         }
 
+        // 一些辅助工具的初始化工作，先跳过
         if (!initialized) {
             initAccumulatorCollector();
             initStatisticsAccumulator();
@@ -172,6 +173,7 @@ public abstract class BaseRichInputFormat extends RichInputFormat<RowData, Input
         startTime = System.currentTimeMillis();
     }
 
+    /** 调用获取记录 */
     @Override
     public RowData nextRecord(RowData rowData) {
         if (byteRateLimiter != null) {

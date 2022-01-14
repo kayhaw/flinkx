@@ -111,17 +111,13 @@ public class JdbcInputFormat extends BaseRichInputFormat {
             dbConn.setAutoCommit(false);
 
             /**
-             * getTableMataData方法调用jdbc原生Connection类提供的
-             * ResultSet tableRs = Connection.getMetaData().getTables(null, schema, tableName, null);
-             * 该方法根据schema和tableName来获取表的元信息，即表的字段类型和字段名称
-             * 相比于DataX的getColumnMetaData方法通过执行select * from 表名 where 1=2 这种故意的sql来获取字段名显得更加"优雅"
-             * 注意部分子类重写getTableMetaData方法，因为schema和表名需要大写
+             * getTableMataData方法调用jdbc原生Connection类提供的 ResultSet tableRs =
+             * Connection.getMetaData().getTables(null, schema, tableName, null);
+             * 该方法根据schema和tableName来获取表的元信息，即表的字段类型和字段名称 相比于DataX的getColumnMetaData方法通过执行select *
+             * from 表名 where 1=2 这种故意的sql来获取字段名显得更加"优雅" 注意部分子类重写getTableMetaData方法，因为schema和表名需要大写
              */
             Pair<List<String>, List<String>> pair = getTableMetaData();
-            /**
-             * 根据任务配置提供的字段name和表的所有字段信息pair匹配
-             * 过滤得到需要的表字段信息
-             */
+            /** 根据任务配置提供的字段name和表的所有字段信息pair匹配 过滤得到需要的表字段信息 */
             Pair<List<String>, List<String>> columnPair =
                     ColumnBuildUtil.handleColumnList(
                             jdbcConf.getColumn(), pair.getLeft(), pair.getRight());
@@ -141,6 +137,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
             RowType rowType =
                     TableUtil.createRowType(
                             columnNameList, columnTypeList, jdbcDialect.getRawTypeConverter());
+            // 设置rowConverter，默认JdbcColumnConverter
             setRowConverter(
                     rowConverter == null
                             ? jdbcDialect.getColumnConverter(rowType, jdbcConf)
@@ -251,7 +248,9 @@ public class JdbcInputFormat extends BaseRichInputFormat {
         }
         try {
             @SuppressWarnings("unchecked")
+            // 1. 默认JdbcColumnConverter实体类，将resultSet的结果转为RowData
             RowData finalRowData = rowConverter.toInternal(resultSet);
+            // 2. 更新增量字段值
             if (isUpdateLocation) {
                 Object obj;
                 switch (type) {
@@ -266,7 +265,9 @@ public class JdbcInputFormat extends BaseRichInputFormat {
                 endLocationAccumulator.add(new BigInteger(location));
                 LOG.debug("update endLocationAccumulator, current Location = {}", location);
             }
+            // 3. restore字段的更新值保存起来
             if (jdbcConf.getRestoreColumnIndex() > -1) {
+                // 加1是因为jdbc的字段序号从1开始数
                 state = resultSet.getObject(jdbcConf.getRestoreColumnIndex() + 1);
             }
             return finalRowData;
@@ -274,6 +275,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
             throw new ReadRecordException("", se, 0, rowData);
         } finally {
             try {
+                // 4. 移动游标到下一个位置
                 hasNext = resultSet.next();
             } catch (SQLException e) {
                 LOG.error("can not read next record", e);
@@ -514,6 +516,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
         List<String> whereList = new ArrayList<>();
 
         JdbcInputSplit jdbcInputSplit = (JdbcInputSplit) inputSplit;
+        // 构建续跑恢复或者增量查询的过滤添加，放在whereList中
         buildLocationFilter(jdbcInputSplit, whereList);
 
         if (StringUtils.isNotBlank(jdbcConf.getWhere())) {
@@ -647,6 +650,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
     protected void buildLocationFilter(JdbcInputSplit jdbcInputSplit, List<String> whereList) {
         String sql = null;
         String startLocation = jdbcInputSplit.getStartLocation();
+        // formatState是本地状态缓存，不是flink中的“状态”
         if (formatState.getState() != null && StringUtils.isNotBlank(jdbcConf.getRestoreColumn())) {
             startLocation = String.valueOf(formatState.getState());
             if (StringUtils.isNotBlank(startLocation)) {
@@ -761,6 +765,7 @@ public class JdbcInputFormat extends BaseRichInputFormat {
      * @throws SQLException
      */
     protected void executeQuery(String startLocation) throws SQLException {
+        // 轮询模式下
         if (jdbcConf.isPolling()) {
             if (StringUtils.isBlank(startLocation)) {
                 // 从数据库中获取起始位置

@@ -119,12 +119,14 @@ public class DtInputFormatSourceFunction<OUT> extends InputFormatSourceFunction<
             Counter completedSplitsCounter =
                     getRuntimeContext().getMetricGroup().counter("numSplitsProcessed");
             if (isRunning && format instanceof RichInputFormat) {
+                // openInputFormat设置jobName、jobId和任务编号，并且插件是否使用自定义reporter并开启
+                // 并且设置读取的开始时间
                 ((RichInputFormat) format).openInputFormat();
             }
 
             OUT nextElement = serializer.createInstance();
             while (isRunning) {
-                // open方法建立jdbc连接
+                // 调用BaseRichInputFormat.open方法
                 format.open(splitIterator.next());
 
                 // for each element we also check if cancel
