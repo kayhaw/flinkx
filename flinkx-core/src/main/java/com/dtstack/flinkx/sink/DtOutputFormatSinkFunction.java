@@ -112,6 +112,7 @@ public class DtOutputFormatSinkFunction<IN> extends OutputFormatSinkFunction<IN>
     }
 
     @Override
+    // invoke是Flink为sink Function定义的接口，调用format的writeRecord方法写数据
     public void invoke(IN record, Context context) throws Exception {
         try {
             format.writeRecord(record);

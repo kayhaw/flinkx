@@ -56,6 +56,7 @@ public abstract class SinkFactory implements RawTypeConvertible {
         }
         this.syncConf = syncConf;
 
+        // 当开启transform sql转换时useAbstractBaseColumn设置为false
         if (syncConf.getTransformer() != null
                 && StringUtils.isNotBlank(syncConf.getTransformer().getTransformSql())) {
             useAbstractBaseColumn = false;
@@ -76,8 +77,13 @@ public abstract class SinkFactory implements RawTypeConvertible {
         Preconditions.checkNotNull(sinkName);
         Preconditions.checkNotNull(outputFormat);
 
+        /**
+         * DtOutputFormatSinkFunction没有被继承，所以所有sinkFunction都是它
+         * outputFormat是真正起作用的类，sinkFunction本质调用用outputformat的方法实现功能
+         */
         DtOutputFormatSinkFunction<RowData> sinkFunction =
                 new DtOutputFormatSinkFunction<>(outputFormat);
+        // addSink是Flink DataStream自带API，接下来去看DtOutputFormatSinkFunction的open方法
         DataStreamSink<RowData> dataStreamSink = dataSet.addSink(sinkFunction);
         dataStreamSink.name(sinkName);
 

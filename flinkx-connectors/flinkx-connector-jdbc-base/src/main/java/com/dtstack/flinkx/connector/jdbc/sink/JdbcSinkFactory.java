@@ -82,10 +82,12 @@ public abstract class JdbcSinkFactory extends SinkFactory {
 
     @Override
     public DataStreamSink<RowData> createSink(DataStream<RowData> dataSet) {
+        // 1. 设置Format builder
         JdbcOutputFormatBuilder builder = getBuilder();
         builder.setJdbcConf(jdbcConf);
         builder.setJdbcDialect(jdbcDialect);
 
+        // 2. 设置RowConverter
         AbstractRowConverter rowConverter = null;
         // 同步任务使用transform
         if (!useAbstractBaseColumn) {
@@ -95,6 +97,7 @@ public abstract class JdbcSinkFactory extends SinkFactory {
         }
         builder.setRowConverter(rowConverter);
 
+        // 3. 创建输出，注意finish会检查批处理数量是否小于20万
         return createOutput(dataSet, builder.finish());
     }
 

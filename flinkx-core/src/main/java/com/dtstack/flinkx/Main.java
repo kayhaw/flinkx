@@ -202,6 +202,7 @@ public class Main {
 
         // 步骤同sourceFactory
         SinkFactory sinkFactory = DataSyncFactoryUtil.discoverSink(config);
+        // 层层调用，最后调用DataStream.addSink方法
         DataStreamSink<RowData> dataStreamSink = sinkFactory.createSink(dataStream);
         if (speed.getWriterChannel() > 0) {
             dataStreamSink.setParallelism(speed.getWriterChannel());
